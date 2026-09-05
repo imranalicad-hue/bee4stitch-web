@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bee4Stitch Web</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐝</text></svg>" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- LOGIN GATE -->
+  <div class="login-overlay" id="login-overlay">
+    <form class="login-card" id="login-form">
+      <div class="brand-mark login-mark">B4S</div>
+      <h1>Bee4Stitch Web</h1>
+      <p class="login-sub">Preview build — sign in to continue</p>
+      <label>Username
+        <input type="text" id="login-username" autocomplete="username" required />
+      </label>
+      <label>Password
+        <input type="password" id="login-password" autocomplete="current-password" required />
+      </label>
+      <button type="submit">Sign in</button>
+      <p class="login-error hidden" id="login-error">Incorrect username or password.</p>
+      <p class="login-note">Preview credentials — ask your admin if you don't have them.</p>
+    </form>
+  </div>
+
+  <div class="app hidden" id="app-root">
+    <aside class="sidebar">
+      <div class="brand">
+        <span class="brand-mark">B4S</span>
+        <div class="brand-text">
+          <strong>Bee4Stitch</strong>
+          <span>Web (Preview)</span>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-item active" data-view="dashboard">
+          <span class="nav-icon">◆</span> Dashboard
+        </button>
+        <button class="nav-item" data-view="marker-efficiency">
+          <span class="nav-icon">◆</span> Marker Efficiency
+        </button>
+        <button class="nav-item is-soon" data-view="production-summary">
+          <span class="nav-icon">◇</span> Production Summary
+        </button>
+        <button class="nav-item" data-view="cutter-performance">
+          <span class="nav-icon">◆</span> Cutter Performance
+        </button>
+        <button class="nav-item is-soon" data-view="ofin-roll">
+          <span class="nav-icon">◇</span> OFIN Roll Analysis
+        </button>
+        <button class="nav-item is-soon" data-view="lot-inventory">
+          <span class="nav-icon">◇</span> Lot Inventory
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <p>Dashboard &amp; Marker Efficiency use sample data.<br/>Cutter Performance reads a real Next2.db extract.</p>
+        <button class="logout-btn" id="logout-btn" type="button">Sign out</button>
+      </div>
+    </aside>
+
+    <main class="content">
+      <header class="topbar">
+        <h1 id="view-title">Dashboard</h1>
+        <div class="topbar-actions">
+          <span class="badge">Preview build</span>
+        </div>
+      </header>
+
+      <!-- DASHBOARD VIEW -->
+      <section class="view" id="view-dashboard">
+        <div class="kpi-grid" id="dashboard-kpis"></div>
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Marker Efficiency — Last 14 Days</h2>
+          </div>
+          <canvas id="dashboard-chart" height="90"></canvas>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Recent Markers</h2>
+          </div>
+          <div class="table-wrap">
+            <table id="dashboard-table"></table>
+          </div>
+        </div>
+      </section>
+
+      <!-- MARKER EFFICIENCY VIEW -->
+      <section class="view hidden" id="view-marker-efficiency">
+        <div class="kpi-grid" id="me-kpis"></div>
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Efficiency Trend</h2>
+            <div class="panel-actions">
+              <select id="me-range">
+                <option value="14">Last 14 days</option>
+                <option value="30" selected>Last 30 days</option>
+                <option value="90">Last 90 days</option>
+              </select>
+            </div>
+          </div>
+          <canvas id="me-chart" height="100"></canvas>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Marker Detail</h2>
+            <div class="panel-actions">
+              <input id="me-search" type="text" placeholder="Search marker, style, order…" />
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table id="me-table"></table>
+          </div>
+        </div>
+      </section>
+
+      <!-- COMING SOON VIEWS -->
+      <section class="view hidden" id="view-production-summary">
+        <div class="empty-state">
+          <h2>Production Summary</h2>
+          <p>Not built yet in this preview. Next up once the data connection to your SQL Server is in place.</p>
+        </div>
+      </section>
+      <section class="view hidden" id="view-cutter-performance">
+        <div id="cp-status-banner" class="cp-status-banner hidden"></div>
+        <div class="panel cp-source-panel">
+          <div class="panel-header">
+            <h2>Data source</h2>
+            <div class="panel-actions">
+              <select id="cp-machine"></select>
+            </div>
+          </div>
+          <p class="cp-source-note">
+            Read directly from that machine's real <code>next2.db</code> — extracted with
+            <code>extract-next2.py</code>, never a manual file upload. See the README for how to refresh this with
+            newer data from the machine and republish it.
+          </p>
+
+          <div class="cp-target-row">
+            <label for="cp-target-speed">Target (ideal) speed</label>
+            <input type="range" id="cp-target-speed" min="0" max="15" step="0.5" value="12" />
+            <span id="cp-target-speed-value">12.0 m/min</span>
+            <span class="cp-target-hint">Same 0–15 m/min setting as Cutter Performance Settings on desktop</span>
+          </div>
+        </div>
+
+        <div class="panel cp-publish-panel">
+          <div class="panel-header">
+            <h2>Add or update a customer</h2>
+          </div>
+          <p class="cp-source-note">
+            Browse to that customer's <code>next2.db</code> (under their <code>xt2cache</code> folder) — it's read
+            right here in your browser, nothing is uploaded until you click Publish. See the README for the
+            one-time setup this needs.
+          </p>
+
+          <div class="cp-publish-grid">
+            <label>Machine ID
+              <input type="text" id="cp-new-id" placeholder="e.g. j-tex-1" />
+              <span class="cp-field-hint">Short, no spaces — used internally, not shown to viewers.</span>
+            </label>
+            <label>Display label
+              <input type="text" id="cp-new-label" placeholder="e.g. J-Tex – Cutter #1" />
+              <span class="cp-field-hint">Shown in the machine picker above.</span>
+            </label>
+            <label>Only include rows since <span class="cp-field-optional">(optional)</span>
+              <input type="date" id="cp-new-since" />
+              <span class="cp-field-hint">Leave blank to include this machine's full history.</span>
+            </label>
+            <label>next2.db file
+              <input type="file" id="cp-new-file" accept=".db" />
+            </label>
+          </div>
+
+          <div class="cp-publish-actions">
+            <button type="button" id="cp-preview-btn" class="btn-secondary">Preview</button>
+            <label class="cp-publish-key-label">Publish key
+              <input type="password" id="cp-publish-key" placeholder="Ask your admin" autocomplete="off" />
+            </label>
+            <button type="button" id="cp-publish-btn" class="btn-primary" disabled>Publish to Vercel</button>
+          </div>
+
+          <p class="cp-table-note" id="cp-publish-status"></p>
+        </div>
+
+        <div class="panel cp-period-panel">
+          <div class="panel-header">
+            <h2>View by</h2>
+            <div class="panel-actions">
+              <select id="cp-period">
+                <option value="day">Day</option>
+                <option value="week">Week</option>
+                <option value="month">Month</option>
+                <option value="year">Year</option>
+                <option value="custom">Custom range</option>
+                <option value="all" selected>All</option>
+              </select>
+            </div>
+          </div>
+          <div class="cp-period-controls">
+            <button type="button" id="cp-period-prev" class="btn-secondary" title="Previous period">◀</button>
+            <input type="date" id="cp-ref-date" />
+            <input type="datetime-local" id="cp-custom-from" class="hidden" />
+            <span class="cp-custom-sep hidden" id="cp-custom-sep">to</span>
+            <input type="datetime-local" id="cp-custom-to" class="hidden" />
+            <button type="button" id="cp-period-next" class="btn-secondary" title="Next period">▶</button>
+            <span class="cp-period-label" id="cp-period-label"></span>
+          </div>
+        </div>
+
+        <div class="kpi-grid" id="cp-kpis"></div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Speed Attainment Trend</h2>
+          </div>
+          <canvas id="cp-chart" height="100"></canvas>
+        </div>
+
+        <div class="panel">
+          <div class="panel-header">
+            <h2>Production Log</h2>
+            <div class="panel-actions">
+              <input id="cp-search" type="text" placeholder="Search marker, order…" />
+            </div>
+          </div>
+          <p class="cp-table-note" id="cp-table-note"></p>
+          <div class="table-wrap">
+            <table id="cp-table"></table>
+          </div>
+        </div>
+      </section>
+      <section class="view hidden" id="view-ofin-roll">
+        <div class="empty-state">
+          <h2>OFIN Roll Analysis</h2>
+          <p>Not built yet in this preview.</p>
+        </div>
+      </section>
+      <section class="view hidden" id="view-lot-inventory">
+        <div class="empty-state">
+          <h2>Lot Inventory</h2>
+          <p>Not built yet in this preview.</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="auth.js"></script>
+  <script src="app.js"></script>
+  <script src="cutter-performance-logic.js"></script>
+  <script src="next2-browser-reader.js"></script>
+  <script src="cutterPerformance.js"></script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+Machine,Operator,Marker Name,Order,Style,Start Time,End Time,Perimeter (m),Marker Length (m),Target Speed,Delay (min),Plies
+Cutter 1,A. Rafiq,MK-20260901-1,ORD-21415,ST-4021,2026-09-01 08:00:00,2026-09-01 08:30:00,50,2.4,12,5,120
+Cutter 1,M. Bilal,MK-20260901-2,ORD-24841,ST-4102,2026-09-01 09:15:00,2026-09-01 09:45:00,62,3.1,12,3,150
+Cutter 2,S. Kanwal,MK-20260901-3,ORD-21589,ST-4055,2026-09-01 10:00:00,2026-09-01 10:22:00,38,1.9,12,0,90

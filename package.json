@@ -1,0 +1,9 @@
+{
+  "name": "bee4stitch-web",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Bee4Stitch web preview — static site with one serverless function (api/publish-machine.js) for the Cutter Performance Browse-and-publish flow. No build step, no dependencies.",
+  "scripts": {
+    "test": "node tests/cutter-performance-logic.test.js && node tests/next2-browser-reader.test.js && node tests/publish-machine.test.js"
+  }
+}
