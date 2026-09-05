@@ -114,6 +114,7 @@ const Next2BrowserReader = (function () {
       markerName: r.MarkerName,
       order,
       style: "—",
+      fabricType: r.FabricType || "—",
       start: isoLocal(start),
       end: isoLocal(end),
       date: isoLocal(start).slice(0, 10),

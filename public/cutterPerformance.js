@@ -9,7 +9,7 @@
   let cpLoaded = false;
   let cpRows = []; // active rows for the current machine / preview
   let targetSpeed = 12;
-  let MACHINES = []; // loaded from data/machines.js
+  let MACHINES = []; // loaded from /api/machines (the cloud database)
   let previewData = null; // { machineId, machineLabel, rows } — set by Preview, cleared once published or a saved machine is picked
 
   // Period viewer state (Day / Week / Month / Year / Custom range / All) —
@@ -39,11 +39,21 @@
     initPeriodPanel();
 
     try {
-      await loadDataScript("data/machines.js");
-      MACHINES = (window.__BEE4STITCH_DATA__ && window.__BEE4STITCH_DATA__.machines) || [];
+      const res = await fetch("/api/machines");
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || `Server responded with ${res.status}`);
+      MACHINES = body.machines || [];
     } catch (err) {
       console.error(err);
       MACHINES = [];
+      setStatus(
+        `Could not load the machine list from the cloud database: ${err.message}. ` +
+          (window.location.protocol === "file:"
+            ? "Cutter Performance now reads live data from the cloud database, so it needs to be opened via the " +
+              "deployed website (not by double-clicking index.html) — see the README."
+            : "Check the site's database setup — see the README's \"Setting up the cloud database\" section."),
+        true
+      );
     }
 
     machineSelect.innerHTML = MACHINES.map((m) => `<option value="${m.id}">${escapeHtml(m.label)}</option>`).join("");
@@ -194,15 +204,14 @@
   async function loadNext2Dataset(machineId) {
     const machine = MACHINES.find((m) => m.id === machineId) || MACHINES[0];
     if (!machine) return;
-    setStatus(`Loading real production data from ${machine.label}'s next2.db extract…`);
+    setStatus(`Loading real production data for ${machine.label} from the cloud database…`);
     try {
-      await loadDataScript(machine.url);
-      const dataset = window.__BEE4STITCH_DATA__ && window.__BEE4STITCH_DATA__.next2 && window.__BEE4STITCH_DATA__.next2[machine.id];
-      if (!dataset) {
-        throw new Error(
-          `${machine.url} loaded but didn't contain data for machine id "${machine.id}" — check the file was ` +
-            `generated with that exact id (extract-next2.py's <machine-id> argument, or the Machine ID field above).`
-        );
+      const res = await fetch(`/api/logs?machineId=${encodeURIComponent(machine.id)}`);
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.error || `Server responded with ${res.status}`);
+      const dataset = body.rows || [];
+      if (!dataset.length) {
+        throw new Error(`No rows found in the database for machine id "${machine.id}".`);
       }
       // Clone so re-selecting this machine later starts from clean strings,
       // not Date objects mutated by a previous load.
@@ -211,10 +220,17 @@
       cpRows = raw;
       setReferenceDateFromRows(raw);
       syncPeriodControls();
-      setStatus(`Loaded ${raw.length.toLocaleString()} real rows from ${machine.label}'s next2.db.`);
+      setStatus(`Loaded ${raw.length.toLocaleString()} real rows for ${machine.label} from the cloud database.`);
       renderAll();
     } catch (err) {
-      setStatus(`Could not load ${machine.label}'s next2.db extract: ${err.message}`, true);
+      setStatus(
+        `Could not load ${machine.label}'s data: ${err.message}` +
+          (window.location.protocol === "file:"
+            ? " — Cutter Performance now reads live data from the cloud database, so it needs to be opened via " +
+              "the deployed website (not by double-clicking index.html)."
+            : ""),
+        true
+      );
       console.error(err);
       cpRows = [];
       renderAll();
@@ -335,8 +351,8 @@
           throw new Error(body.error || `Server responded with ${res.status}`);
         }
         setPublishStatus(
-          `Published. Vercel is redeploying now — reload this page in about a minute and "${previewData.machineLabel}" ` +
-            `will be in the machine picker above.`,
+          `Published to the cloud database — reload this page and "${previewData.machineLabel}" will be in the ` +
+            `machine picker above, visible to anyone who opens the live site.`,
           false,
           true
         );
@@ -345,8 +361,8 @@
         console.error(err);
         const msg = err.message.replace(/\.?\s*$/, "");
         setPublishStatus(
-          `Publish failed: ${msg}. If this is the first time, check the README's "Setting up automatic publish" ` +
-            `section — this needs a one-time GitHub + Vercel setup.`,
+          `Publish failed: ${msg}. If this is the first time, check the README's "Setting up the cloud database" ` +
+            `section — this needs a one-time Vercel Postgres setup.`,
           true
         );
       } finally {
@@ -382,7 +398,9 @@
     }
     if (q) {
       rows = rows.filter((r) =>
-        [r.markerName, r.machine, r.order, r.style, r.operator].some((f) => String(f).toLowerCase().includes(q))
+        [r.markerName, r.machine, r.order, r.style, r.operator, r.fabricType].some((f) =>
+          String(f).toLowerCase().includes(q)
+        )
       );
     }
     return rows;
@@ -467,9 +485,10 @@
     const table = document.getElementById("cp-table");
     table.innerHTML = `
       <thead><tr>
-        <th>Marker Name</th><th>Machine</th><th>Order</th><th>Start</th><th>End</th>
+        <th>Marker Name</th><th>Machine</th><th>Order</th><th>Operator</th><th>Style</th><th>Fabric Type</th>
+        <th>Start</th><th>End</th>
         <th>Used</th><th>Delay</th><th>Delay State</th><th>Speed (m/min)</th>
-        <th>Speed vs Target</th><th>Performance Status</th><th>Perimeter (m)</th><th>Plies</th>
+        <th>Speed vs Target</th><th>Performance Status</th><th>Perimeter (m)</th><th>Marker Length (m)</th><th>Plies</th>
       </tr></thead>
       <tbody>
         ${shown
@@ -478,6 +497,9 @@
           <td>${escapeHtml(r.markerName)}</td>
           <td>${escapeHtml(r.machine)}</td>
           <td>${escapeHtml(r.order)}</td>
+          <td>${escapeHtml(r.operator || "—")}</td>
+          <td>${escapeHtml(r.style || "—")}</td>
+          <td>${escapeHtml(r.fabricType || "—")}</td>
           <td>${r.start.toLocaleString()}</td>
           <td>${r.end.toLocaleString()}</td>
           <td>${fmtMinutes(r.usedMin)}</td>
@@ -487,6 +509,7 @@
           <td>${r.speedAttainmentPct === null ? "—" : fmt(r.speedAttainmentPct, 1) + "%"}</td>
           <td><span class="pill ${STATUS_CLASS[r.performanceStatus] || "warn"}">${escapeHtml(r.performanceStatus)}</span></td>
           <td>${fmt(r.perimeterM, 1)}</td>
+          <td>${r.markerLengthM === null || r.markerLengthM === undefined ? "—" : fmt(r.markerLengthM, 2)}</td>
           <td>${r.plies === null ? "—" : fmt(r.plies)}</td>
         </tr>`
           )

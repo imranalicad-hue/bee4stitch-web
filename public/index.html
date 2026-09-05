@@ -58,7 +58,7 @@
       </nav>
 
       <div class="sidebar-footer">
-        <p>Dashboard &amp; Marker Efficiency use sample data.<br/>Cutter Performance reads a real Next2.db extract.</p>
+        <p>Dashboard &amp; Marker Efficiency use sample data.<br/>Cutter Performance reads real Next2.db data from the cloud database.</p>
         <button class="logout-btn" id="logout-btn" type="button">Sign out</button>
       </div>
     </aside>
@@ -136,9 +136,10 @@
             </div>
           </div>
           <p class="cp-source-note">
-            Read directly from that machine's real <code>next2.db</code> — extracted with
-            <code>extract-next2.py</code>, never a manual file upload. See the README for how to refresh this with
-            newer data from the machine and republish it.
+            Read live from the site's cloud database, populated by browsing that machine's real
+            <code>next2.db</code> below — never a manual file upload. Anyone who opens this site sees the same
+            data immediately, with nothing to upload themselves. See the README for how to refresh this with newer
+            data from the machine.
           </p>
 
           <div class="cp-target-row">
@@ -155,8 +156,9 @@
           </div>
           <p class="cp-source-note">
             Browse to that customer's <code>next2.db</code> (under their <code>xt2cache</code> folder) — it's read
-            right here in your browser, nothing is uploaded until you click Publish. See the README for the
-            one-time setup this needs.
+            right here in your browser, nothing is uploaded until you click Publish. Publishing saves it straight
+            to the site's cloud database — anyone who opens the live site sees it immediately, no upload needed on
+            their end. See the README for the one-time setup this needs.
           </p>
 
           <div class="cp-publish-grid">

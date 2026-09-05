@@ -17,24 +17,38 @@ web page computes those at runtime from the adjustable target-speed setting
 desktop app recomputes attainment from My.Settings.CutterPerformanceIdealSpeed.
 
 The output is a .js file (not .json): it assigns the extracted rows into
-window.__BEE4STITCH_DATA__.next2[<machine-id>] instead of being plain JSON
-loaded with fetch(). That's deliberate — see the comment atop public/app.js.
-It's what lets the site load from a plain double-click of index.html with
-no local server, which is how the extracted rows actually reach the page.
+window.__BEE4STITCH_DATA__.next2[<machine-id>] — a plain-text local backup/
+audit copy of exactly what gets published, in the same row format. The live
+site's Cutter
+Performance page reads from a cloud Postgres database via /api/machines and
+/api/logs (see api/_lib/db.js and the README's "Setting up the cloud
+database"); the normal way to publish is the in-page Browse -> Preview ->
+Publish flow, which POSTs straight to /api/publish-machine.
+
+This script can do that same POST for you (e.g. for a scheduled refresh with
+no one at a browser) with --publish-url and --publish-key:
 
 Usage:
-  python3 extract-next2.py <path-to-next2.db> <machine-id> <machine-label> <output.js> [--since YYYY-MM-DD]
+  python3 extract-next2.py <path-to-next2.db> <machine-id> <machine-label> <output.js> [--since YYYY-MM-DD] [--publish-url https://your-site.vercel.app --publish-key YOUR_SECRET]
 
-  <machine-id>    must exactly match an id in the MACHINES list in
-                   public/cutterPerformance.js (e.g. "kay-emms-1").
+  <machine-id>    the key the web page looks up — reuse an existing id (see
+                   the machine picker on the live site) to update that
+                   machine, or invent a new short lowercase-hyphenated one
+                   to add a customer.
   <machine-label> the display name shown in the web app's machine picker
                    (e.g. "Kay & Emms - Cutter #1").
-  <output.js>     where to write the data file — must match that same
-                   MACHINES entry's `url` (e.g. public/data/next2-kay-emms-cutter1.js).
+  <output.js>     where to write the local backup/preview file.
+  --publish-url   the live site's base URL — when given, also POSTs the
+                   extracted rows to <publish-url>/api/publish-machine so
+                   they're live on the site immediately, same as clicking
+                   Publish in the browser.
+  --publish-key   the site's PUBLISH_SECRET — required if --publish-url is
+                   given.
 """
 import sqlite3
 import json
 import sys
+import urllib.request
 from datetime import datetime, timedelta
 
 def main():
@@ -49,6 +63,15 @@ def main():
     since = None
     if "--since" in sys.argv:
         since = sys.argv[sys.argv.index("--since") + 1]
+    publish_url = None
+    if "--publish-url" in sys.argv:
+        publish_url = sys.argv[sys.argv.index("--publish-url") + 1].rstrip("/")
+    publish_key = None
+    if "--publish-key" in sys.argv:
+        publish_key = sys.argv[sys.argv.index("--publish-key") + 1]
+    if publish_url and not publish_key:
+        print("--publish-url was given without --publish-key — both are required to publish.")
+        sys.exit(1)
 
     con = sqlite3.connect(db_path)
     con.row_factory = sqlite3.Row
@@ -93,6 +116,7 @@ def main():
             "markerName": r["MarkerName"],
             "order": (r["ProductionOrder"] or r["OrderName"] or "—").strip() or "—",
             "style": "—",
+            "fabricType": r["FabricType"] or "—",
             "start": start.isoformat(),
             "end": end.isoformat(),
             "date": start.date().isoformat(),
@@ -115,6 +139,25 @@ def main():
     print(f"Extracted {len(rows)} rows ({skipped} skipped: bad timestamps) -> {out_path}")
     if rows:
         print(f"Date range: {rows[0]['date']} .. {rows[-1]['date']}")
+
+    if publish_url:
+        if not rows:
+            print("Nothing to publish (0 rows extracted).")
+            return
+        payload = json.dumps({"machineId": machine_id, "machineLabel": machine_label, "rows": rows}).encode("utf-8")
+        req = urllib.request.Request(
+            f"{publish_url}/api/publish-machine",
+            data=payload,
+            method="POST",
+            headers={"Content-Type": "application/json", "X-Publish-Key": publish_key},
+        )
+        try:
+            with urllib.request.urlopen(req) as resp:
+                print(f"Published {len(rows)} rows to {publish_url} -> HTTP {resp.status}")
+        except urllib.error.HTTPError as e:
+            body = e.read().decode("utf-8", errors="replace")
+            print(f"Publish failed: HTTP {e.code} — {body}")
+            sys.exit(1)
 
 if __name__ == "__main__":
     main()

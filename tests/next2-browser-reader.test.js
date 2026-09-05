@@ -115,4 +115,12 @@ test("mapRow falls back OrderName -> '—' when both order fields are empty, mat
   assert.strictEqual(remapped.order, "—");
 });
 
+test("mapRow surfaces FabricType, falling back to '—' when absent", () => {
+  const raw = rawFromExtracted(realRows[0]);
+  raw.FabricType = null;
+  assert.strictEqual(Reader.mapRow(raw, "X").fabricType, "—");
+  raw.FabricType = "Denim";
+  assert.strictEqual(Reader.mapRow(raw, "X").fabricType, "Denim");
+});
+
 console.log(`\n${passed} test(s) passed.`);

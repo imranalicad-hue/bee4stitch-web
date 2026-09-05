@@ -2,8 +2,11 @@
   "name": "bee4stitch-web",
   "private": true,
   "version": "1.0.0",
-  "description": "Bee4Stitch web preview — static site with one serverless function (api/publish-machine.js) for the Cutter Performance Browse-and-publish flow. No build step, no dependencies.",
+  "description": "Bee4Stitch web preview — static site with serverless functions (api/publish-machine.js, api/machines.js, api/logs.js) backed by a Postgres cloud database for the Cutter Performance Browse-and-publish flow. No build step for the site itself; the API functions have one dependency (pg) that Vercel installs automatically.",
   "scripts": {
-    "test": "node tests/cutter-performance-logic.test.js && node tests/next2-browser-reader.test.js && node tests/publish-machine.test.js"
+    "test": "node tests/cutter-performance-logic.test.js && node tests/next2-browser-reader.test.js && node tests/db.test.js && node tests/publish-machine.test.js && node tests/api-handlers.test.js"
+  },
+  "dependencies": {
+    "pg": "^8.11.5"
   }
 }

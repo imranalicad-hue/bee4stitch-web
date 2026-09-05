@@ -2,79 +2,65 @@
 
 This is what's needed so the **Publish to Vercel** button on the Cutter Performance page actually
 works. It only needs to be done once per Vercel project. Preview (Browse + see the data) already
-works today without any of this — it's only the "make it live for everyone" step that needs a
-backend behind it.
+works today without any of this — it's only the "save it live for everyone" step that needs a
+database behind it.
 
-Do these in order. Total time: about 10 minutes.
+Do these in order. Total time: about 5 minutes.
 
-## Why Publish isn't working yet
+## Already done ✅
 
-Right now you're opening `index.html` by double-clicking it on your own PC. That's a local file —
-there's no server behind it, so there's nothing for the Publish button to talk to. Preview still
-works because reading the `.db` file happens entirely in your browser, no server involved. Publish
-needs the site to actually be deployed to Vercel, with the two steps below wired up.
+- **Repo pushed to GitHub**: `imranalicad-hue/bee4stitch-web`.
+- **Connected to Vercel**: project `bee4stitch` under the `warmish` team, deployed and live at
+  `bee4stitch.vercel.app`.
 
-## Step 1 — Get this folder into a GitHub repo
+If either of those ever needs redoing (a fresh repo, a different Vercel project), see the README's
+"Deploying to your Vercel team" section — the steps below assume they're already in place.
 
-If it's not already in one:
+## Step 1 — Create the cloud database
 
-1. Create a new (private is fine) repo on GitHub, e.g. `bee4stitch-web`.
-2. Push this whole folder to it (standard `git init` / `git add` / `git commit` / `git push`, or
-   GitHub Desktop if you prefer a GUI).
+1. In Vercel, open the `bee4stitch` project → **Storage** tab → **Create Database**.
+2. Choose **Postgres** (Vercel's own Postgres offering, powered by Neon).
+3. Follow the prompts to create it, and make sure it's **connected to this project** (Vercel asks
+   this as part of the flow — say yes).
+4. That's it — no connection string to copy anywhere. Vercel automatically sets the
+   `DATABASE_URL`/`POSTGRES_URL` environment variable(s) the site's API functions read from.
 
-## Step 2 — Deploy that repo to your Vercel team ("warmish")
+## Step 2 — Add the publish key
 
-1. In Vercel, under the `warmish` team: **Add New… → Project** → import the GitHub repo from
-   Step 1.
-2. Leave build settings on their defaults — no build command needed, Vercel auto-detects the
-   `public/` folder. Click **Deploy**.
-3. Once it finishes, you'll have a live URL (something like `bee4stitch-web.vercel.app`). That's
-   the link to actually share/use going forward, instead of double-clicking the file.
+1. Same project → **Settings → Environment Variables**.
+2. Add `PUBLISH_SECRET` with a passphrase you make up — this is what gets typed into the "Publish
+   key" field on the page. No GitHub token needed for any of this anymore.
 
-## Step 3 — Create a GitHub token so the site can commit new data
+## Step 3 — Redeploy
 
-The Publish button needs permission to write files into your repo (that's how "live" data updates
-happen — a normal git commit that Vercel then redeploys).
-
-1. On GitHub: **Settings → Developer settings → Personal access tokens → Fine-grained tokens →
-   Generate new token**.
-2. **Repository access:** "Only select repositories" → pick the repo from Step 1.
-3. **Permissions:** Contents → **Read and write**. Nothing else.
-4. Generate it and **copy the token immediately** — GitHub only shows it once.
-
-## Step 4 — Add environment variables in Vercel
-
-In Vercel: your project → **Settings → Environment Variables**. Add these five:
-
-| Name | Value |
-|---|---|
-| `GITHUB_TOKEN` | the token from Step 3 |
-| `GITHUB_OWNER` | your GitHub username or org (e.g. `warmish`) |
-| `GITHUB_REPO` | the repo name from Step 1 (e.g. `bee4stitch-web`) |
-| `GITHUB_BRANCH` | optional — leave blank, it defaults to `main` |
-| `PUBLISH_SECRET` | make up a passphrase — this is what gets typed into the "Publish key" field on the page |
-
-Then **redeploy once** (Deployments tab → ⋯ on the latest deployment → Redeploy), so the new
-environment variables actually get picked up. Environment variables added after a deploy don't
+**Deployments** tab → ⋯ on the latest deployment → **Redeploy**, so the API functions pick up the
+new database connection and `PUBLISH_SECRET`. Environment variables added after a deploy don't
 apply retroactively.
+
+## Step 4 — Re-publish the Kay & Emms data
+
+The 3,777 rows that used to ship as a file in the repo aren't automatically in the new database —
+it starts empty. Browse to that same `next2.db` again through the page (or run
+`extract-next2.py`/`refresh-and-publish.ps1` with `--publish-url`/`--publish-key`, see the README)
+to seed it back in. After that it's there for good, same as any other published machine.
 
 ## Step 5 — Try it on the live site
 
-1. Open your live Vercel URL (not the local file) and sign in.
+1. Open `https://bee4stitch.vercel.app` (not a local double-clicked file) and sign in.
 2. Go to Cutter Performance → "Add or update a customer".
 3. Browse to a `next2.db`, click Preview, check the numbers look right.
-4. Type the `PUBLISH_SECRET` from Step 4 into the Publish key field, click **Publish to Vercel**.
-5. It should show a success message. Give it about a minute (Vercel needs to redeploy after the
-   commit), then reload the page — the new machine should be in the picker.
+4. Type the `PUBLISH_SECRET` from Step 2 into the Publish key field, click **Publish to Vercel**.
+5. It should show a success message immediately — no redeploy wait this time, since it's a
+   database write, not a file commit. Reload the page and the new machine is in the picker.
 
 ## If Publish still fails on the live site
 
-- **"not configured yet" message** → one of the five environment variables in Step 4 is missing
-  or the redeploy hasn't happened yet.
+- **"No database connected yet"** → Step 1 wasn't finished, or the redeploy in Step 3 hasn't
+  happened since.
+- **"isn't configured yet" (about PUBLISH_SECRET)** → Step 2's environment variable is missing, or
+  needs that redeploy too.
 - **"unauthorized" / key rejected** → the Publish key typed on the page doesn't match
   `PUBLISH_SECRET` in Vercel.
-- **GitHub API error** → the token from Step 3 may have expired, been revoked, or not have write
-  access to the right repo — re-check Step 3.
 - **Still stuck** → open the browser's dev tools (F12) → Console/Network tab while clicking
   Publish, and share what error shows up.
 
@@ -84,7 +70,8 @@ apply retroactively.
 |---|---|---|
 | Browse a `next2.db` | ✅ works (all in-browser) | ✅ works |
 | Preview the data | ✅ works | ✅ works |
-| Publish (save it live for everyone) | ❌ no server to publish to | ✅ works, once Steps 1–4 above are done |
+| View already-published machines | ❌ no server to fetch from | ✅ works |
+| Publish (save it live for everyone) | ❌ no server to publish to | ✅ works, once Steps 1–3 above are done |
 
-This matches the "Setting up automatic publish (one-time)" section in `README.md` — this file is
-just that same setup as a straight top-to-bottom checklist.
+This matches the "Setting up the cloud database" section in `README.md` — this file is just that
+same setup as a straight top-to-bottom checklist.
